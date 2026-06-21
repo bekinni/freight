@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Freight Learning</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0B1F3A;--navy-mid:#152E52;--navy-light:#1E3F6E;
+  --steel:#4A6FA5;--steel-light:#D4E3F5;
+  --amber:#C8860A;--amber-light:#FDF3DC;
+  --teal:#0F7B6C;--teal-light:#D6F0EC;
+  --coral:#C44B2B;--coral-light:#FAE8E3;
+  --ink:#1A1A2E;--ink-mid:#3D3D5C;--ink-light:#6B6B8A;
+  --rule:#E2E8F0;--surface:#F7F9FC;--white:#FFFFFF;
+  --mono:'IBM Plex Mono',monospace;--sans:'Inter',sans-serif;
+}
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--surface);color:var(--ink);font-size:15px;line-height:1.75}
+#quiz-view{display:none}
+nav{position:sticky;top:0;z-index:200;background:var(--navy);padding:0 1.5rem;display:flex;align-items:center;border-bottom:2px solid var(--amber);overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav a{display:block;padding:0.8rem 0.85rem;font-size:11.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:rgba(255,255,255,0.5);text-decoration:none;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;cursor:pointer}
+nav a:hover,nav a.active{color:#fff;border-bottom-color:var(--amber)}
+.page{max-width:860px;margin:0 auto;padding:2.5rem 1.75rem 6rem}
+.hero{background:var(--navy);color:white;padding:2.75rem 2rem 2.5rem;margin-bottom:3rem;border-radius:4px;border-left:4px solid var(--amber);position:relative;overflow:hidden}
+.hero::after{content:'⚓';position:absolute;right:2rem;top:50%;transform:translateY(-50%);font-size:5rem;opacity:0.06}
+.hero-label{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--amber);text-transform:uppercase;margin-bottom:.6rem}
+.hero h1{font-size:1.9rem;font-weight:600;line-height:1.2;margin-bottom:.6rem}
+.hero p{color:rgba(255,255,255,.6);font-size:14px;max-width:500px}
+.section{margin-bottom:4rem;scroll-margin-top:58px}
+.section-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;padding-bottom:.75rem;border-bottom:1.5px solid var(--rule)}
+.section-tag{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:2px;font-weight:500}
+.tag-blue{background:var(--steel-light);color:var(--navy)}
+.tag-amber{background:var(--amber-light);color:var(--amber)}
+.tag-teal{background:var(--teal-light);color:var(--teal)}
+.tag-coral{background:var(--coral-light);color:var(--coral)}
+.tag-navy{background:var(--navy);color:white}
+.section h2{font-size:1.3rem;font-weight:600;color:var(--ink)}
+.card{background:white;border:1px solid var(--rule);border-radius:4px;padding:1.2rem 1.4rem;margin-bottom:.75rem}
+.card-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-mid);margin-bottom:.5rem}
+.card p,.card-body{color:var(--ink-mid);font-size:14px;line-height:1.7}
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem}
+@media(max-width:580px){.card-grid{grid-template-columns:1fr}}
+
+/* fun fact */
+.fun-fact{display:flex;gap:.85rem;align-items:flex-start;background:#0B1F3A;border-radius:4px;padding:1rem 1.2rem;margin:.75rem 0}
+.fun-fact-icon{font-size:1.3rem;flex-shrink:0;margin-top:1px}
+.fun-fact-text{font-size:13px;color:rgba(255,255,255,.75);line-height:1.6}
+.fun-fact-text strong{color:var(--amber);font-weight:500}
+
+.ws-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin:1rem 0}
+.ws-cell{border-radius:4px;padding:1rem;text-align:center;border:1px solid transparent}
+.ws-cell .val{font-family:var(--mono);font-size:1.4rem;font-weight:500;display:block}
+.ws-cell .desc{font-size:12px;margin-top:4px}
+.ws-soft{background:var(--teal-light);border-color:#9AD4CB}
+.ws-soft .val{color:var(--teal)}.ws-soft .desc{color:#1A6B5E}
+.ws-mid{background:#F1F5F9;border-color:var(--rule)}
+.ws-mid .val{color:var(--ink)}.ws-mid .desc{color:var(--ink-light)}
+.ws-hot{background:var(--coral-light);border-color:#F0B8A8}
+.ws-hot .val{color:var(--coral)}.ws-hot .desc{color:#A33A20}
+
+/* map */
+.map-wrap{border-radius:4px;overflow:hidden;border:1px solid var(--rule);margin-bottom:.75rem;position:relative}
+#map-legend{position:absolute;bottom:10px;left:10px;z-index:500;background:rgba(11,31,58,.92);border-radius:4px;padding:.5rem .75rem;font-size:11px;color:rgba(255,255,255,.8)}
+#map-legend div{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+#map-legend div:last-child{margin-bottom:0}
+.leg-line{width:22px;height:2px;border-radius:1px}
+.route-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:.5rem}
+.route-table th{background:var(--navy);color:white;padding:.5rem .75rem;text-align:left;font-weight:500;font-size:11px;letter-spacing:.04em}
+.route-table td{padding:.5rem .75rem;border-bottom:1px solid var(--rule);color:var(--ink-mid);vertical-align:middle}
+.route-table tr:last-child td{border-bottom:none}
+.route-table tr:hover td{background:#F1F5F9}
+.ws-badge{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:500;padding:2px 7px;border-radius:2px}
+.ws-low{background:var(--teal-light);color:var(--teal)}
+.ws-med{background:var(--amber-light);color:var(--amber)}
+.ws-high{background:var(--coral-light);color:var(--coral)}
+
+.formula{font-family:var(--mono);background:var(--navy);color:var(--amber);font-size:13px;padding:1rem 1.5rem;border-radius:4px;margin:1rem 0;letter-spacing:.02em}
+.flow{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:.75rem 0}
+.flow-step{background:var(--steel-light);color:var(--navy);font-size:12px;font-weight:500;padding:5px 12px;border-radius:2px}
+.flow-arrow{color:var(--ink-light);font-size:14px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:.6rem}
+.pill{font-size:12px;padding:3px 10px;border:1px solid var(--rule);border-radius:20px;color:var(--ink-mid);background:white}
+.note{border-left:3px solid var(--amber);background:var(--amber-light);padding:.75rem 1rem;font-size:13px;color:#7A5200;border-radius:0 3px 3px 0;margin:.75rem 0}
+.player-name{font-weight:600;font-size:14px;color:var(--ink)}
+.player-examples{font-size:12px;color:var(--ink-light);font-family:var(--mono);margin-top:2px}
+
+.quiz-trigger{display:flex;align-items:center;gap:.75rem;background:var(--navy);border:none;border-radius:4px;padding:1rem 1.5rem;cursor:pointer;width:100%;margin-top:2rem;transition:background .15s;font-family:var(--sans)}
+.quiz-trigger:hover{background:var(--navy-light)}
+.quiz-trigger-text{color:white;font-size:14px;font-weight:500;flex:1;text-align:left}
+.quiz-trigger-sub{color:rgba(255,255,255,.5);font-size:12px;font-family:var(--mono)}
+.quiz-trigger-arrow{color:var(--amber);font-size:1.2rem}
+
+/* ── QUIZ VIEW ── */
+#quiz-view{background:var(--surface);min-height:100vh}
+.quiz-page{max-width:680px;margin:0 auto;padding:2.5rem 1.75rem 5rem}
+.quiz-back{display:flex;align-items:center;gap:.5rem;background:none;border:none;cursor:pointer;color:var(--ink-mid);font-size:13px;font-family:var(--sans);padding:0;margin-bottom:2rem;transition:color .15s}
+.quiz-back:hover{color:var(--ink)}
+.quiz-back svg{width:16px;height:16px}
+.quiz-hero{background:var(--navy);border-radius:4px;padding:1.75rem 1.75rem 1.5rem;margin-bottom:2.5rem;border-left:4px solid var(--amber)}
+.quiz-hero .qh-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--amber);text-transform:uppercase;margin-bottom:.4rem}
+.quiz-hero h2{color:white;font-size:1.2rem;font-weight:600}
+.quiz-hero p{color:rgba(255,255,255,.55);font-size:13px;margin-top:.3rem}
+.qprog-wrap{margin-bottom:2rem}
+.qprog-label{font-size:12px;color:var(--ink-light);margin-bottom:.4rem;font-family:var(--mono)}
+.qprog-bar{height:4px;background:var(--rule);border-radius:2px;overflow:hidden}
+.qprog-fill{height:100%;background:var(--amber);border-radius:2px;transition:width .3s}
+.q-card{background:white;border:1px solid var(--rule);border-radius:4px;padding:1.5rem;margin-bottom:1.25rem}
+.q-num{font-family:var(--mono);font-size:11px;color:var(--ink-light);margin-bottom:.5rem}
+.q-text{font-size:15px;font-weight:500;color:var(--ink);line-height:1.55;margin-bottom:1rem}
+.q-opts{display:flex;flex-direction:column;gap:.5rem}
+.q-opt{background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:.7rem 1rem;font-size:14px;color:var(--ink-mid);cursor:pointer;text-align:left;transition:background .12s,border-color .12s;font-family:var(--sans);width:100%}
+.q-opt:hover:not(:disabled){background:var(--steel-light);border-color:var(--steel)}
+.q-opt.correct{background:var(--teal-light)!important;border-color:var(--teal)!important;color:var(--teal)!important}
+.q-opt.wrong{background:var(--coral-light)!important;border-color:var(--coral)!important;color:var(--coral)!important}
+.q-opt:disabled{cursor:default}
+.q-feedback{font-size:13px;margin-top:.75rem;padding:.6rem .85rem;border-radius:3px;display:none;line-height:1.5}
+.q-feedback.show{display:block}
+.q-feedback.correct{background:var(--teal-light);color:var(--teal)}
+.q-feedback.wrong{background:var(--coral-light);color:var(--coral)}
+#name-gate{text-align:center;padding:3rem 1rem}
+#name-gate h2{font-size:1.3rem;font-weight:600;margin-bottom:.5rem}
+#name-gate p{color:var(--ink-mid);font-size:14px;margin-bottom:1.5rem}
+#name-input{font-family:var(--sans);font-size:15px;padding:.7rem 1rem;border:1px solid var(--rule);border-radius:4px;width:100%;max-width:320px;margin-bottom:1rem;outline:none;transition:border-color .15s}
+#name-input:focus{border-color:var(--steel)}
+#name-submit{background:var(--navy);color:white;border:none;padding:.7rem 1.75rem;font-size:14px;font-weight:500;font-family:var(--sans);border-radius:3px;cursor:pointer;transition:background .15s}
+#name-submit:hover{background:var(--navy-light)}
+#score-screen{display:none;text-align:center;padding:2rem 0}
+.score-ring{width:120px;height:120px;margin:0 auto 1.25rem;position:relative}
+.score-ring svg{width:120px;height:120px;transform:rotate(-90deg)}
+.score-ring circle{fill:none;stroke-width:8}
+.score-ring .bg-ring{stroke:var(--rule)}
+.score-ring .fg-ring{stroke:var(--amber);stroke-linecap:round;transition:stroke-dashoffset 1s ease}
+.score-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--mono);font-size:1.5rem;font-weight:500;color:var(--ink)}
+.score-msg{font-size:15px;font-weight:500;margin-bottom:.4rem}
+.score-sub{font-size:13px;color:var(--ink-mid);margin-bottom:1.75rem}
+.email-btn{background:var(--amber);color:var(--navy);border:none;padding:.75rem 1.75rem;font-size:14px;font-weight:600;font-family:var(--sans);border-radius:3px;cursor:pointer;text-decoration:none;display:inline-block;margin-bottom:.75rem;transition:background .15s}
+.email-btn:hover{background:#B07508}
+.email-sent-note{font-size:12px;color:var(--ink-light);margin-bottom:1.5rem}
+.retry-btn{background:none;border:1px solid var(--rule);padding:.6rem 1.25rem;font-size:13px;font-family:var(--sans);border-radius:3px;cursor:pointer;color:var(--ink-mid);transition:background .15s}
+.retry-btn:hover{background:white}
+</style>
+</head>
+<body>
+
+<nav id="top-nav">
+  <a onclick="gotoSection('players')">Players</a>
+  <a onclick="gotoSection('ffa')">FFAs</a>
+  <a onclick="gotoSection('wetdry')">Wet vs Dry</a>
+  <a onclick="gotoSection('dirtyclean')">Dirty vs Clean</a>
+  <a onclick="gotoSection('worldscale')">World Scale</a>
+  <a onclick="gotoSection('tce')">TCE</a>
+  <a onclick="gotoSection('freight')">Freight basics</a>
+</nav>
+
+<!-- ══════════════ MAIN VIEW ══════════════ -->
+<div id="main-view">
+<div class="page">
+
+  <div class="hero">
+    <div class="hero-label">Study Notes</div>
+    <h1>Freight Markets</h1>
+    <p>Seven sections covering the mechanics of global shipping markets — players, FFAs, wet and dry, world scale, and TCE. Each section ends with a quiz.</p>
+  </div>
+
+  <!-- ═══ 01 PLAYERS -->
+  <div class="section" id="players">
+    <div class="section-header">
+      <span class="section-tag tag-navy">01</span>
+      <h2>Key Physical Players</h2>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Shipping companies — vessel owners</div>
+      <p style="margin-bottom:.75rem;font-size:14px">Own and operate the vessels. Revenue comes from freight rates (voyage charter) or hire rates (time charter). Bear the cost of crew, maintenance, insurance, and often bunkers.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:13px">
+        <div><div class="player-name">Wet majors</div><div class="player-examples">Frontline, Euronav, DHT Holdings, Teekay Tankers, International Seaways</div></div>
+        <div><div class="player-name">Dry majors</div><div class="player-examples">Star Bulk, Pacific Basin, Golden Ocean, Genco Shipping, Diana Shipping</div></div>
+      </div>
+    </div>
+
+    <div class="fun-fact">
+      <span class="fun-fact-icon">🚢</span>
+      <div class="fun-fact-text"><strong>Fun fact:</strong> The world's largest crude oil tanker ever built, the Seawise Giant (later renamed TI Jahre Viking), was so large it could not pass through the English Channel, the Suez Canal, or the Panama Canal. At 458 metres long, it is still the longest ship ever constructed.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Charterers — cargo owners and traders</div>
+      <p style="margin-bottom:.75rem;font-size:14px">Hire vessels to move their cargo. Pay freight or hire. Can be oil majors, commodity traders, refiners, or other shipping companies that sub-charter.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:13px;margin-bottom:.75rem">
+        <div><div class="player-name">Oil majors</div><div class="player-examples">Shell, BP, TotalEnergies, ExxonMobil, Chevron</div></div>
+        <div><div class="player-name">Commodity traders</div><div class="player-examples">Vitol, Trafigura, Glencore, Gunvor, Mercuria</div></div>
+      </div>
+      <div style="font-size:13px"><div class="player-name">Dry charterers</div><div class="player-examples">Steel mills, BHP, Vale, Rio Tinto (mining) — Cargill, ADM, Bunge, Louis Dreyfus (grain)</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Brokers — intermediaries</div>
+      <p style="font-size:14px">Sit between owners and charterers, matching vessels to cargo. Earn commission — typically 1.25% each side. Also active in the FFA market. Key names: Clarksons, Braemar, Gibson, BRS, Fearnleys.</p>
+    </div>
+
+    <div class="fun-fact">
+      <span class="fun-fact-icon">💡</span>
+      <div class="fun-fact-text"><strong>Fun fact:</strong> Vitol, the world's largest independent oil trader, moves more oil by sea each year than Saudi Arabia exports. In a strong market year, the company handles over <strong>8 million barrels per day</strong> — roughly equivalent to the entire oil production of Russia.</div>
+    </div>
+
+    <button class="quiz-trigger" onclick="openQuiz('players')">
+      <div><div class="quiz-trigger-text">Test yourself on Key Players</div><div class="quiz-trigger-sub">3 questions</div></div>
+      <span class="quiz-trigger-arrow">→</span>
+    </button>
+  </div>
+
+  <!-- ═══ 02 FFAs -->
+  <div class="section" id="ffa">
+    <div class="section-header">
+      <span class="section-tag tag-blue">02</span>
+      <h2>FFAs — Forward Freight Agreements</h2>
+    </div>
+
+    <div class="card">
+      <div class="card-title">What they are</div>
+      <p>FFAs are OTC (over-the-counter) derivatives that allow market participants to lock in a freight rate for a future period without physically moving cargo. They settle against a published index (Baltic Exchange rates). No vessel or cargo changes hands — settlement is purely financial.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">How settlement works</div>
+      <div class="flow">
+        <div class="flow-step">Agree rate today</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">No physical cargo</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Settlement period ends</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Cash difference vs index</div>
+      </div>
+      <p style="margin-top:.75rem;font-size:13px;color:var(--ink-mid)">Example: you buy a WS 100 FFA on a dirty tanker route. If spot settles at WS 140 you receive the difference. If spot settles at WS 70, you pay the difference.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Why they exist — hedging</div>
+      <p style="margin-bottom:.6rem"><strong>Shipowner</strong> — fears rates will fall. Sells FFAs to lock in today's high rate. If spot falls, the FFA profit offsets lost revenue.</p>
+      <p><strong>Charterer / trader</strong> — fears rates will rise. Buys FFAs to cap their future freight cost. If spot rises, the FFA profit covers the higher physical cost.</p>
+    </div>
+
+    <div class="fun-fact">
+      <span class="fun-fact-icon">📊</span>
+      <div class="fun-fact-text"><strong>Fun fact:</strong> The FFA market is enormous relative to the physical market it references. On some tanker routes, the <strong>paper (FFA) volume traded can be 5–10× the volume of physical cargo</strong> actually moving. This means the tail frequently wags the dog — FFA positioning can move spot freight rates.</div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-title" style="color:var(--steel)">Wet FFAs</div>
+        <p style="font-size:13px">Settled against the Baltic Dirty Tanker Index (BDTI) or Baltic Clean Tanker Index (BCTI). Quoted in <strong>WS points</strong> for specific tanker routes (e.g. TD3C — VLCC AG to China).</p>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="card-title" style="color:var(--amber)">Dry FFAs</div>
+        <p style="font-size:13px">Settled against Baltic Dry Index sub-indices — BCI (Capesize), BPI (Panamax), BSI (Supramax). Quoted in <strong>$/day</strong> rather than WS points.</p>
+      </div>
+    </div>
+
+    <button class="quiz-trigger" onclick="openQuiz('ffa')">
+      <div><div class="quiz-trigger-text">Test yourself on FFAs</div><div class="quiz-trigger-sub">4 questions</div></div>
+      <span class="quiz-trigger-arrow">→</span>
+    </button>
+  </div>
+
+  <!-- ═══ 03 WET vs DRY -->
+  <div class="section" id="wetdry">
+    <div class="section-header">
+      <span class="section-tag tag-teal">03</span>
+      <h2>Wet vs Dry Freight</h2>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title" style="color:var(--steel)">Wet freight</div>
+        <p>Liquid cargo transported in tankers. Includes crude oil, refined petroleum products, LNG, and chemicals.</p>
+        <div class="pills"><span class="pill">Crude oil</span><span class="pill">Fuel oil</span><span class="pill">Naphtha</span><span class="pill">LNG</span></div>
+        <div style="margin-top:.75rem;font-size:13px;color:var(--ink-light)">Vessels: VLCCs, Suezmaxes, Aframaxes (crude) — MR/LR tankers (products)</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--amber)">Dry freight</div>
+        <p>Solid bulk cargo transported in bulk carriers. Includes iron ore, coal, grain, and fertilisers.</p>
+        <div class="pills"><span class="pill">Iron ore</span><span class="pill">Coal</span><span class="pill">Grain</span><span class="pill">Fertilisers</span></div>
+        <div style="margin-top:.75rem;font-size:13px;color:var(--ink-light)">Vessels: Capesizes, Panamaxes, Supramaxes, Handysizes</div>
+      </div>
+    </div>
+
+    <div class="fun-fact">
+      <span class="fun-fact-icon">⚓</span>
+      <div class="fun-fact-text"><strong>Fun fact:</strong> A single Capesize bulker carrying iron ore from Brazil to China carries enough iron ore to produce the steel for roughly <strong>100,000 cars</strong>. The journey takes around 35 days and covers approximately 11,000 nautical miles — with no stops.</div>
+    </div>
+
+    <button class="quiz-trigger" onclick="openQuiz('wetdry')">
+      <div><div class="quiz-trigger-text">Test yourself on Wet vs Dry</div><div class="quiz-trigger-sub">3 questions</div></div>
+      <span class="quiz-trigger-arrow">→</span>
+    </button>
+  </div>
+
+  <!-- ═══ 04 DIRTY vs CLEAN -->
+  <div class="section" id="dirtyclean">
+    <div class="section-header">
+      <span class="section-tag tag-coral">04</span>
+      <h2>Dirty vs Clean (within wet freight)</h2>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title" style="color:var(--ink-mid)">Dirty</div>
+        <p>Unrefined, heavier petroleum products. Tankers carrying dirty cargo are harder to clean between cargoes. Crude oil is the primary dirty cargo.</p>
+        <div class="pills"><span class="pill">Crude oil</span><span class="pill">Fuel oil</span><span class="pill">Dirty petroleum</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--teal)">Clean</div>
+        <p>Refined, lighter products requiring clean, coated tanks kept free of residue. Clean products typically command a premium over dirty.</p>
+        <div class="pills"><span class="pill">Gasoline</span><span class="pill">Jet fuel</span><span class="pill">Naphtha</span><span class="pill">Diesel</span></div>
+      </div>
+    </div>
+
+    <div class="note">A vessel moving from dirty to clean trading must undergo a costly tank cleaning process. Clean tankers rarely carry dirty cargo because it would contaminate the tanks — this creates a one-way barrier that affects vessel supply on each route.</div>
+
+    <div class="fun-fact">
+      <span class="fun-fact-icon">🧽</span>
+      <div class="fun-fact-text"><strong>Fun fact:</strong> Cleaning a tanker's cargo tanks from dirty to clean-grade takes <strong>10–20 days</strong> and requires specialist shore crews. The water used in the cleaning process — contaminated with oil residue — must be carefully treated before discharge under MARPOL environmental regulations. The total cost can run to <strong>$500,000 or more</strong> depending on vessel size.</div>
+    </div>
+
+    <button class="quiz-trigger" onclick="openQuiz('dirtyclean')">
+      <div><div class="quiz-trigger-text">Test yourself on Dirty vs Clean</div><div class="quiz-trigger-sub">3 questions</div></div>
+      <span class="quiz-trigger-arrow">→</span>
+    </button>
+  </div>
+
+  <!-- ═══ 05 WORLD SCALE -->
+  <div class="section" id="worldscale">
+    <div class="section-header">
+      <span class="section-tag tag-amber">05</span>
+      <h2>World Scale</h2>
+    </div>
+
+    <div class="card">
+      <div class="card-title">What it is</div>
+      <p>A standardised pricing benchmark published annually by the Worldscale Association. It defines a <strong>flat rate (WS 100)</strong> for every port-to-port route, based on a hypothetical standard vessel of 75,000 DWT using the prior year's bunker prices, port costs, and canal dues. All prices are in $/tonne.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">How the factor works</div>
+      <p>The flat rate is fixed for the year. The market then trades at a multiple of it — the WS factor — driven by supply and demand. Economies of scale and differences between ship sizes mean the factor is also adjusted for vessel capacity.</p>
+      <div class="ws-row">
+        <div class="ws-cell ws-soft"><span class="val">WS 80</span><span class="desc">80% of flat rate — soft market</span></div>
+        <div class="ws-cell ws-mid"><span class="val">WS 100</span><span class="desc">Flat rate baseline</span></div>
+        <div class="ws-cell ws-hot"><span class="val">WS 190</span><span class="desc">190% of flat rate — strong market</span></div>
+      </div>
+    </div>
+
+    <div class="note">If you charter a vessel with 50,000 DWT capacity but only need 45,000 tonnes of space, you will still typically pay for the full 50,000 tonne capacity.</div>
+
+    <div class="fun-fact">
+      <span class="fun-fact-icon">🌐</span>
+      <div class="fun-fact-text"><strong>Fun fact:</strong> The Worldscale Association publishes flat rates for over <strong>320,000 port-to-port combinations</strong>. The annual flat rate book — once a physical publication — is now digital, but a printed copy would run to thousands of pages. The rate for every possible tanker voyage is in there somewhere.</div>
+    </div>
+
+    <!-- MAP -->
+    <div class="card">
+      <div class="card-title">Key world scale routes — 2024 flat rates ($/mt at WS 100)</div>
+      <p style="font-size:13px;color:var(--ink-mid);margin-bottom:.75rem">Routes shown follow actual sea lanes — through the Suez Canal, Malacca Strait, around Cape Horn and Cape of Good Hope. Hover or tap a route label for details. Flat rates shown are approximate 2024 Worldscale published values.</p>
+      <div class="map-wrap" style="height:430px">
+        <div id="ws-map" style="height:100%;width:100%"></div>
+        <div id="map-legend">
+          <div><span class="leg-line" style="background:#C8860A;display:inline-block"></span><span>VLCC routes</span></div>
+          <div><span class="leg-line" style="background:#C44B2B;display:inline-block"></span><span>Aframax / Suezmax</span></div>
+          <div><span class="leg-line" style="background:#0F7B6C;display:inline-block"></span><span>Product tanker</span></div>
+          <div><span class="leg-line" style="background:#7B5EA7;display:inline-block"></span><span>Capesize dry bulk</span></div>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto">
+      <table class="route-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Route</th>
+            <th>Vessel type</th>
+            <th>2024 flat rate (WS 100)</th>
+            <th>Approx. $/mt at market</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>TD3C</strong></td><td>Arabian Gulf → China</td><td>VLCC 270k DWT</td><td><span class="ws-badge ws-low">$10.85/mt</span></td><td>~$6–9/mt (WS 55–80)</td></tr>
+          <tr><td><strong>TD2</strong></td><td>Arabian Gulf → Singapore</td><td>VLCC 270k DWT</td><td><span class="ws-badge ws-low">$4.95/mt</span></td><td>~$3–4/mt (WS 55–80)</td></tr>
+          <tr><td><strong>TD20</strong></td><td>West Africa → Cont / USAC</td><td>Suezmax 130k DWT</td><td><span class="ws-badge ws-med">$18.47/mt</span></td><td>~$14–22/mt (WS 75–120)</td></tr>
+          <tr><td><strong>TD6</strong></td><td>Black Sea → Mediterranean</td><td>Suezmax 135k DWT</td><td><span class="ws-badge ws-med">$8.95/mt</span></td><td>~$8–16/mt (WS 90–175)</td></tr>
+          <tr><td><strong>TD7</strong></td><td>North Sea → Continent</td><td>Aframax 80k DWT</td><td><span class="ws-badge ws-high">$11.05/mt</span></td><td>~$11–22/mt (WS 100–200)</td></tr>
+          <tr><td><strong>TD17</strong></td><td>Baltic → UKC</td><td>Aframax 100k DWT</td><td><span class="ws-badge ws-high">$10.28/mt</span></td><td>~$10–18/mt (WS 100–175)</td></tr>
+          <tr><td><strong>TC2</strong></td><td>Continent → USAC</td><td>MR tanker 37k DWT</td><td><span class="ws-badge ws-high">$29.40/mt</span></td><td>~$26–44/mt (WS 90–150)</td></tr>
+          <tr><td><strong>TC5</strong></td><td>Arabian Gulf → Japan</td><td>LR1 55k DWT</td><td><span class="ws-badge ws-med">$20.75/mt</span></td><td>~$17–29/mt (WS 80–140)</td></tr>
+          <tr><td><strong>C3</strong></td><td>Brazil → China (iron ore)</td><td>Capesize 170k DWT</td><td colspan="2" style="color:var(--ink-light);font-style:italic">Quoted in $/mt (~$18–26/mt) — not WS</td></tr>
+          <tr><td><strong>C4</strong></td><td>Richards Bay → Rotterdam (coal)</td><td>Capesize 150k DWT</td><td colspan="2" style="color:var(--ink-light);font-style:italic">Quoted in $/mt (~$10–15/mt) — not WS</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p style="font-size:12px;color:var(--ink-light);margin-top:.6rem">Note: VLCCs trade at lower WS numbers because the $/mt flat rate is already set higher to reflect the large cargo volume carried. Dry bulk routes (C3, C4) are not quoted in World Scale — they use $/mt or $/day directly.</p>
+    </div>
+
+    <button class="quiz-trigger" onclick="openQuiz('worldscale')">
+      <div><div class="quiz-trigger-text">Test yourself on World Scale</div><div class="quiz-trigger-sub">4 questions</div></div>
+      <span class="quiz-trigger-arrow">→</span>
+    </button>
+  </div>
+
+  <!-- ═══ 06 TCE -->
+  <div class="section" id="tce">
+    <div class="section-header">
+      <span class="section-tag tag-teal">06</span>
+      <h2>TCE — Time Charter Equivalent</h2>
+    </div>
+
+    <div class="card">
+      <div class="card-title">What it is</div>
+      <p>TCE is a standardised way of expressing voyage charter earnings as a daily rate, enabling comparison across different voyages and charter types on an apples-to-apples basis.</p>
+    </div>
+
+    <div class="formula">(Freight revenue − voyage costs) ÷ voyage duration in days = TCE ($/day)</div>
+
+    <div class="card">
+      <div class="card-title">What voyage costs are deducted</div>
+      <p>The costs deducted are the ones the shipowner bears under a voyage charter — primarily <strong>bunkers</strong> and <strong>port costs</strong>. What remains is the net daily earning, equivalent to what the owner would receive under a time charter (where the charterer pays fuel).</p>
+    </div>
+
+    <div class="fun-fact">
+      <span class="fun-fact-icon">⛽</span>
+      <div class="fun-fact-text"><strong>Fun fact:</strong> A VLCC burns around <strong>80–100 tonnes of fuel per day</strong> at laden speed. With bunker fuel (VLSFO) priced around $600/tonne, a single VLCC voyage from the Arabian Gulf to China consumes roughly <strong>$3–4 million in fuel alone</strong>. Bunker cost is by far the single largest variable in a shipowner's voyage economics — which is exactly why it gets stripped out in the TCE calculation.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Why it matters</div>
+      <p>A shipowner offered a voyage charter at WS 130 on one route, and a time charter at $35,000/day on another, cannot directly compare those two numbers. Converting the voyage charter to TCE gives a single $/day figure that makes the decision straightforward.</p>
+      <p style="margin-top:.6rem">Shipping companies also report TCE per vessel per day in their quarterly results — it strips out the noise of different voyage lengths and cost structures across the fleet.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">TCE and FFAs</div>
+      <p>Dry FFAs are already quoted in $/day, matching the TCE convention. Wet FFAs are quoted in WS points — traders convert these to a TCE equivalent when assessing whether a hedge is fairly priced against their physical position.</p>
+    </div>
+
+    <button class="quiz-trigger" onclick="openQuiz('tce')">
+      <div><div class="quiz-trigger-text">Test yourself on TCE</div><div class="quiz-trigger-sub">3 questions</div></div>
+      <span class="quiz-trigger-arrow">→</span>
+    </button>
+  </div>
+
+  <!-- ═══ 07 FREIGHT BASICS -->
+  <div class="section" id="freight">
+    <div class="section-header">
+      <span class="section-tag tag-blue">07</span>
+      <h2>Freight basics</h2>
+    </div>
+
+    <div class="card">
+      <div class="card-title">The basics</div>
+      <p>Freight is the cost of transporting cargo by sea. The shipper (cargo owner) pays a freight rate to move goods from a loading port to a discharge port. Rates are quoted in <strong>$/tonne</strong> for voyage charters, or <strong>$/day</strong> for time charters.</p>
+    </div>
+
+    <div class="fun-fact">
+      <span class="fun-fact-icon">🌍</span>
+      <div class="fun-fact-text"><strong>Fun fact:</strong> Around <strong>90% of the world's traded goods</strong> travel by sea at some point in their journey. The entire global shipping fleet emits roughly 2.5% of global CO₂ — about the same as Germany. If shipping were a country, it would be the world's sixth largest emitter.</div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title">Voyage charter</div>
+        <p>The charterer pays per tonne of cargo moved on a specific voyage. The shipowner covers fuel (bunkers) and port costs.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Time charter</div>
+        <p>The charterer hires the vessel for a period at a daily rate. The charterer pays for fuel; the owner covers crew and maintenance.</p>
+      </div>
+    </div>
+
+    <button class="quiz-trigger" onclick="openQuiz('freight')">
+      <div><div class="quiz-trigger-text">Test yourself on Freight basics</div><div class="quiz-trigger-sub">3 questions</div></div>
+      <span class="quiz-trigger-arrow">→</span>
+    </button>
+  </div>
+
+  <!-- SUMMATIVE CTA -->
+  <div style="margin-top:1rem;padding:1.75rem;background:var(--navy);border-radius:4px;text-align:center;border-top:3px solid var(--amber)">
+    <div style="font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">All sections</div>
+    <div style="color:white;font-size:1.1rem;font-weight:600;margin-bottom:.35rem">Summative quiz</div>
+    <div style="color:rgba(255,255,255,.55);font-size:13px;margin-bottom:1.25rem">20 questions across all topics</div>
+    <button onclick="openQuiz('summative')" style="background:var(--amber);color:var(--navy);border:none;padding:.75rem 2rem;font-size:14px;font-weight:600;border-radius:3px;cursor:pointer;font-family:var(--sans)" onmouseover="this.style.background='#B07508'" onmouseout="this.style.background='var(--amber)'">Start final quiz →</button>
+  </div>
+
+</div><!-- end .page -->
+</div><!-- end #main-view -->
+
+<!-- ══════════════ QUIZ VIEW ══════════════ -->
+<div id="quiz-view">
+  <nav style="background:var(--navy);padding:0 1.5rem;display:flex;align-items:center;border-bottom:2px solid var(--amber)">
+    <a onclick="closeQuiz()" style="display:block;padding:.8rem 0;font-size:11.5px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,.7);cursor:pointer">← Back to notes</a>
+  </nav>
+  <div class="quiz-page">
+    <div id="name-gate">
+      <h2>Before you start</h2>
+      <p>Enter your name — it will be included when your score is sent.</p>
+      <input type="text" id="name-input" placeholder="Your name" autocomplete="off"/>
+      <br>
+      <button id="name-submit" onclick="startQuiz()">Start quiz</button>
+    </div>
+    <div id="quiz-content" style="display:none">
+      <div class="quiz-hero">
+        <div class="qh-label" id="quiz-section-label">Section quiz</div>
+        <h2 id="quiz-title"></h2>
+        <p id="quiz-subtitle"></p>
+      </div>
+      <div class="qprog-wrap">
+        <div class="qprog-label" id="prog-label">Question 1 of 4</div>
+        <div class="qprog-bar"><div class="qprog-fill" id="prog-fill" style="width:0%"></div></div>
+      </div>
+      <div id="questions-container"></div>
+    </div>
+    <div id="score-screen">
+      <button class="quiz-back" onclick="closeQuiz()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3L5 8l5 5"/></svg>
+        Back to notes
+      </button>
+      <div class="score-ring">
+        <svg viewBox="0 0 120 120">
+          <circle class="bg-ring" cx="60" cy="60" r="52"/>
+          <circle class="fg-ring" id="score-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+        </svg>
+        <div class="score-center" id="score-center-text">0/0</div>
+      </div>
+      <div class="score-msg" id="score-msg-text"></div>
+      <div class="score-sub" id="score-sub-text"></div>
+      <br>
+      <a id="email-link" class="email-btn" href="#">Send my score to Ben</a>
+      <div class="email-sent-note">Opens your mail app with results pre-filled</div>
+      <br>
+      <button class="retry-btn" onclick="retryQuiz()">Try again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── QUIZ DATA ──────────────────────────────────────────────────────────────
+const QUIZZES = {
+  players:{title:'Key Players',subtitle:'3 questions on shipowners, charterers, and brokers',qs:[
+    {q:'Vitol charters a VLCC to move crude oil from the Middle East to Asia. What role is Vitol playing?',opts:['Shipowner','Charterer','Broker'],ans:1,fb:['Vitol is a commodity trader hiring the vessel — they are the charterer, not the vessel owner.','Correct. Vitol is a commodity trader hiring the vessel — they are the charterer.','A broker arranges the deal — Vitol is the one hiring the vessel.']},
+    {q:'Frontline owns a fleet of tankers and earns revenue from freight rates. What type of player is Frontline?',opts:['Shipping company (vessel owner)','Charterer','Broker'],ans:0,fb:['Correct. Frontline is a tanker owner — a shipping company that owns and operates vessels.','Frontline owns vessels — it does not hire them to move its own cargo.','Brokers match owners and charterers for commission — Frontline is a vessel owner.']},
+    {q:'A broker matches a cargo with a vessel. What is the typical commission rate per side?',opts:['5%','0.5%','1.25%'],ans:2,fb:['5% per side is not the rate stated in these notes.','0.5% per side is not the rate stated in these notes.','Correct. Brokers typically earn 1.25% commission from each side of the transaction.']}
+  ]},
+  ffa:{title:'FFAs',subtitle:'4 questions on Forward Freight Agreements',qs:[
+    {q:'When an FFA settles, what is physically exchanged between the two parties?',opts:['Cargo and vessel assignment','A vessel on time charter','A cash payment based on the difference from the index'],ans:2,fb:['FFAs are purely financial — no cargo moves as a result of the settlement.','A vessel is not transferred — FFAs involve no physical shipping.','Correct. FFAs settle in cash — the difference between the agreed rate and the index at settlement date.']},
+    {q:'A shipowner is worried freight rates will fall over the next quarter. What FFA position should they take?',opts:['Buy FFAs','Sell FFAs'],ans:1,fb:['Buying FFAs benefits you when rates rise. The owner fears falling rates, so they should sell.','Correct. The owner sells FFAs to lock in the current rate. If spot rates fall, the FFA profit compensates.']},
+    {q:'Dry FFAs are quoted in which unit?',opts:['WS points','$/tonne','$/day'],ans:2,fb:['WS points are used for wet FFAs, not dry.','$/tonne is a voyage charter freight unit — dry FFAs use $/day.','Correct. Dry FFAs are quoted in $/day, matching the time charter rate convention for bulk carriers.']},
+    {q:'A trader buys a WS 100 FFA on a dirty tanker route. The index settles at WS 85. What happens?',opts:['The trader receives the difference between WS 100 and WS 85','The trader pays the difference between WS 100 and WS 85','Nothing — settlement is zero'],ans:1,fb:['When you buy an FFA and the index falls below your agreed rate, you pay the difference — you do not receive it.','Correct. The trader agreed to buy at WS 100 but the index settled lower at WS 85 — they pay the difference.','Settlement is not zero — the index moved from the agreed rate, so a cash difference is due.']}
+  ]},
+  wetdry:{title:'Wet vs Dry',subtitle:'3 questions on freight categories',qs:[
+    {q:'A cargo of iron ore needs to be shipped from Brazil to China. Is this wet or dry freight?',opts:['Wet freight','Dry freight'],ans:1,fb:['Wet freight is liquid cargo. Iron ore is a solid bulk commodity — it is dry freight.','Correct. Iron ore is a solid bulk cargo — dry freight, carried on bulk carriers such as Capesizes.']},
+    {q:'Which of the following vessel types is used in the wet freight market?',opts:['Capesize','Supramax','VLCC'],ans:2,fb:['Capesizes are bulk carriers used in dry freight — iron ore, coal etc.','Supramaxes are bulk carriers used in dry freight.','Correct. VLCCs (Very Large Crude Carriers) are tankers used in the wet freight market.']},
+    {q:'LNG falls into which freight category?',opts:['Wet freight','Dry freight'],ans:0,fb:['Correct. LNG (Liquefied Natural Gas) is a liquid cargo and therefore falls under wet freight.','LNG is a liquid cargo — it is wet freight, not dry.']}
+  ]},
+  dirtyclean:{title:'Dirty vs Clean',subtitle:'3 questions on wet freight sub-categories',qs:[
+    {q:'Jet fuel is classified as which type of wet cargo?',opts:['Dirty','Clean'],ans:1,fb:['Dirty cargo refers to unrefined, heavier products like crude oil. Jet fuel is refined.','Correct. Jet fuel is a refined, lighter product and is classified as clean cargo.']},
+    {q:'Why do clean tankers rarely carry dirty cargo?',opts:['Clean tankers are too small for dirty cargoes','Dirty cargo would contaminate the tanks, requiring costly cleaning','World Scale does not apply to dirty routes'],ans:1,fb:['Clean tankers are generally capable of carrying dirty cargo — the barrier is practical, not about size.','Correct. Carrying dirty cargo would contaminate the tanks, requiring expensive cleaning before the vessel could trade clean products again.','World Scale applies to both dirty and clean tanker routes.']},
+    {q:'Which of these is a dirty cargo?',opts:['Gasoline','Diesel','Fuel oil'],ans:2,fb:['Gasoline is a refined product — it is clean cargo.','Diesel is a refined product — it is clean cargo.','Correct. Fuel oil is an unrefined, heavy petroleum product and is classified as dirty cargo.']}
+  ]},
+  worldscale:{title:'World Scale',subtitle:'4 questions on the WS benchmark',qs:[
+    {q:'The hypothetical standard vessel used to calculate the World Scale flat rate has a capacity of:',opts:['50,000 DWT','75,000 DWT','100,000 DWT'],ans:1,fb:['The standard vessel is 75,000 DWT, not 50,000.','Correct. The WS benchmark is built around a hypothetical 75,000 DWT vessel.','The standard vessel is 75,000 DWT, not 100,000.']},
+    {q:'A route has a flat rate of $10/mt. The market is trading at WS 130. What is the effective freight rate?',opts:['$10/mt','$13.30/mt','$13/mt'],ans:2,fb:['$10/mt would be WS 100 — the flat rate itself.','$13.30 is not correct. WS 130 = 130% of $10 = $13/mt.','Correct. WS 130 means 130% of the flat rate. 130% × $10 = $13/mt.']},
+    {q:'What drives the WS factor up or down from the WS 100 baseline?',opts:['Worldscale Association decisions','Supply and demand in the freight market','Annual bunker price changes'],ans:1,fb:['The Worldscale Association publishes the flat rate — they do not set the market factor.','Correct. The WS factor is determined by market supply and demand for vessels.','Bunker prices are baked into the flat rate at publication, not the market factor.']},
+    {q:'You charter a 50,000 DWT vessel but only need 45,000 tonnes of capacity. How much are you likely to pay for?',opts:['45,000 tonnes','50,000 tonnes','47,500 tonnes'],ans:1,fb:['You only need 45,000 tonnes but would still be charged for the full vessel capacity.','Correct. The shipping company needs to cover the cost of the full vessel capacity regardless of how much cargo you load.','There is no splitting the difference — you pay for the full vessel.']}
+  ]},
+  tce:{title:'TCE',subtitle:'3 questions on Time Charter Equivalent',qs:[
+    {q:'A voyage generates $900,000 in freight revenue. Bunkers and port costs total $300,000. The voyage takes 15 days. What is the TCE?',opts:['$60,000/day','$40,000/day','$20,000/day'],ans:1,fb:['You need to subtract voyage costs before dividing. ($900,000 − $300,000) ÷ 15 = $40,000/day.','Correct. ($900,000 − $300,000) ÷ 15 days = $40,000/day TCE.','This would be voyage costs alone divided by days, not the correct TCE.']},
+    {q:'What is the primary purpose of TCE?',opts:['To set the World Scale flat rate each year','To allow voyage and time charter earnings to be compared on a $/day basis','To calculate the optimal vessel size for a cargo'],ans:1,fb:['TCE is not used to set the World Scale flat rate — that is done by the Worldscale Association.','Correct. TCE converts voyage charter earnings into a daily rate so they can be compared with time charter rates and across different voyages.','TCE is a financial metric — it does not determine which vessel is used.']},
+    {q:'Under a voyage charter, which costs are deducted when calculating TCE?',opts:['Crew wages and maintenance','Bunkers and port costs','Fuel only — the charterer pays port costs'],ans:1,fb:['Crew costs are covered by the owner but are not the voyage-specific costs deducted in the TCE formula.','Correct. Bunkers and port costs are the voyage costs the shipowner bears under a voyage charter.','The charterer pays fuel under a time charter — not a voyage charter. For TCE we deduct bunkers and port costs.']}
+  ]},
+  freight:{title:'Freight basics',subtitle:'3 questions on charter types and rate units',qs:[
+    {q:'Under a voyage charter, who is responsible for paying bunker (fuel) costs?',opts:['The charterer','The shipowner','The broker'],ans:1,fb:['Under a voyage charter the shipowner covers bunkers and port costs — that is what they price into the freight rate.','Correct. The shipowner bears bunker and port costs under a voyage charter and prices them into the freight rate.','The broker arranges the deal but does not pay operating costs.']},
+    {q:'A cargo owner wants to hire a vessel for six months and will manage their own fuel purchasing. Which charter type fits?',opts:['Voyage charter','Time charter'],ans:1,fb:['Voyage charters are priced per tonne for a specific voyage — the owner pays fuel.','Correct. Time charters are priced per day for a period, and the charterer pays fuel.']},
+    {q:'Freight rates for voyage charters are quoted in which unit?',opts:['$/tonne','$/day','$/barrel'],ans:0,fb:['Correct. Voyage charters are quoted in $/tonne — you pay per unit of cargo moved.','$/day is the unit for time charters, not voyage charters.','$/barrel is an oil price unit, not a freight rate unit.']}
+  ]},
+  summative:{title:'Summative quiz',subtitle:'20 questions across all sections',qs:[
+    // Freight basics
+    {q:'Under a time charter, who pays for bunker fuel?',opts:['The shipowner','The charterer','The broker'],ans:1,fb:['Under a time charter the charterer pays for fuel — the owner covers crew and maintenance.','Correct. The charterer pays bunker fuel under a time charter.','The broker earns commission — they do not pay for fuel.']},
+    {q:'Freight rates for voyage charters are quoted in which unit?',opts:['$/day','$/tonne','$/barrel'],ans:1,fb:['$/day is the unit for time charters, not voyage charters.','Correct. Voyage charters are quoted in $/tonne.','$/barrel is an oil price, not a freight rate unit.']},
+    // World Scale
+    {q:'The World Scale flat rate is based on a hypothetical vessel of:',opts:['50,000 DWT','75,000 DWT','150,000 DWT'],ans:1,fb:['The standard vessel is 75,000 DWT.','Correct. The WS flat rate is built around a hypothetical 75,000 DWT vessel.','The standard vessel is 75,000 DWT.']},
+    {q:'The WS factor (e.g. WS 80 or WS 150) is determined by:',opts:['The Worldscale Association, updated quarterly','Supply and demand in the freight market','Annual bunker price changes'],ans:1,fb:['The Worldscale Association publishes the flat rate — they do not set the market factor.','Correct. The WS factor is set by the market through supply and demand.','Bunker prices feed into the flat rate calculation, not the market WS factor.']},
+    {q:'A route has a 2024 flat rate of $18.47/mt. The market trades at WS 110. What does the charterer pay?',opts:['$18.47/mt','$20.32/mt','$16.79/mt'],ans:1,fb:['$18.47/mt is WS 100 — the flat rate itself.','Correct. WS 110 = 110% × $18.47 = $20.32/mt.','$16.79/mt would be below the flat rate (WS 91 approximately).']},
+    {q:'You charter a 50,000 DWT vessel but only need 45,000 tonnes. How much capacity are you likely to pay for?',opts:['45,000 tonnes','50,000 tonnes','47,500 tonnes'],ans:1,fb:['You only need 45,000 tonnes but still pay for the full vessel.','Correct. The shipping company covers the full vessel cost regardless of cargo loaded.','There is no splitting the difference — you pay for the full vessel.']},
+    // Wet vs Dry
+    {q:'Which of the following is a dry freight cargo?',opts:['Naphtha','Crude oil','Coal'],ans:2,fb:['Naphtha is a liquid cargo — wet freight.','Crude oil is a liquid cargo — wet freight.','Correct. Coal is a solid bulk commodity — dry freight.']},
+    {q:'Which vessel class carries dry bulk cargo on the longest ocean routes?',opts:['VLCC','Capesize','MR tanker'],ans:1,fb:['VLCCs are crude oil tankers — wet freight.','Correct. Capesizes are the largest bulk carriers, used on major long-haul routes like Brazil–China iron ore.','MR tankers carry refined petroleum products — clean wet freight.']},
+    // Dirty vs Clean
+    {q:'Diesel is classified as a:',opts:['Clean wet cargo','Dirty wet cargo','Dry cargo'],ans:0,fb:['Correct. Diesel is a refined, lighter product — clean wet cargo.','Dirty cargo refers to unrefined products like crude oil. Diesel is refined.','Diesel is a liquid petroleum product — wet freight.']},
+    {q:'Why do clean tankers rarely carry dirty cargo?',opts:['Size mismatch','Tank contamination requiring costly cleaning','Different WS index applies'],ans:1,fb:['Size is not the barrier — it is about tank contamination.','Correct. Carrying dirty cargo contaminates the coated tanks, requiring expensive cleaning before the vessel can trade clean again.','The WS index is not the reason — it is the physical tank contamination.']},
+    {q:'Which of these cargoes would require clean-grade tanks?',opts:['Crude oil','Fuel oil','Jet fuel'],ans:2,fb:['Crude oil is dirty cargo — it does not require clean tanks.','Fuel oil is dirty cargo.','Correct. Jet fuel is a refined product and requires clean-grade tanks.']},
+    // FFAs
+    {q:'When an FFA settles, what changes hands?',opts:['Cargo and vessel','A cash payment based on the index difference','The charter agreement'],ans:1,fb:['FFAs are purely financial — no cargo or vessel moves.','Correct. FFAs settle purely in cash — the difference between the agreed rate and the index at settlement.','The charter agreement is a physical contract — FFAs are financial derivatives.']},
+    {q:'A charterer fears freight rates will rise next quarter. What should they do?',opts:['Sell FFAs','Buy FFAs','Do nothing — FFAs are only for shipowners'],ans:1,fb:['Selling FFAs is the shipowner hedge (fearing falling rates). A charterer who fears rising costs buys FFAs.','Correct. A charterer buys FFAs to cap their future cost. If spot rises, the FFA profit offsets it.','FFAs are used by both shipowners and charterers.']},
+    {q:'Wet FFAs settle against which index?',opts:['Baltic Dry Index (BDI)','BDTI or BCTI','Worldscale flat rate'],ans:1,fb:['The BDI is for dry freight. Wet FFAs settle against the BDTI or BCTI.','Correct. Wet FFAs settle against the Baltic Dirty Tanker Index (BDTI) or Baltic Clean Tanker Index (BCTI).','The Worldscale flat rate is not the settlement index for FFAs.']},
+    {q:'How are dry FFAs quoted, unlike wet FFAs?',opts:['In WS points','In $/tonne','In $/day'],ans:2,fb:['WS points are for wet FFAs.','$/tonne is a voyage charter unit — not how dry FFAs are quoted.','Correct. Dry FFAs are quoted in $/day, while wet FFAs use WS points.']},
+    // TCE
+    {q:'Freight revenue is $600,000. Voyage costs are $150,000. Voyage lasts 10 days. What is the TCE?',opts:['$60,000/day','$45,000/day','$15,000/day'],ans:1,fb:['$60,000/day would be freight revenue alone divided by days, without deducting voyage costs.','Correct. ($600,000 − $150,000) ÷ 10 = $45,000/day TCE.','$15,000/day would be voyage costs alone divided by days.']},
+    {q:'Why is TCE useful when comparing a WS 130 voyage charter against a $38,000/day time charter?',opts:['It converts the time charter rate into WS points','It converts voyage earnings into $/day for a like-for-like comparison','It averages the two rates'],ans:1,fb:['TCE converts voyage earnings into $/day — not the other direction.','Correct. TCE deducts voyage costs and divides by days to give $/day comparable to a time charter rate.','TCE does not average rates — it converts one into the same unit as the other.']},
+    // Players
+    {q:'Which of the following is primarily a charterer of dry freight vessels?',opts:['Frontline','Rio Tinto','Clarksons'],ans:1,fb:['Frontline is a tanker owner — a shipping company, not a charterer.','Correct. Rio Tinto is a mining company that charters bulk carriers to ship iron ore.','Clarksons is a broker — they match owners and charterers for commission.']},
+    {q:'Clarksons earns revenue by:',opts:['Owning and operating tankers','Matching vessel owners with charterers for a commission','Buying and selling FFAs as a principal'],ans:1,fb:['Clarksons is a broker — not a vessel owner.','Correct. Clarksons is one of the world\'s largest shipbrokers, earning commission (typically 1.25% per side) for matching owners and charterers.','Brokers can be active in the FFA market but their core business is brokering physical charters.']},
+    {q:'A vessel must undergo tank cleaning to move from dirty to clean trading. What is an approximate cost for a large vessel?',opts:['Around $5,000','Around $50,000','$500,000 or more'],ans:2,fb:['$5,000 is far too low — specialist cleaning of a large tanker is a major operation.','$50,000 is still too low for a large vessel requiring full clean-grade preparation.','Correct. For a large tanker, the full tank cleaning process can run to $500,000 or more, plus 10–20 days of off-hire time.']}
+  ]}
+};
+
+// ── STATE ───────────────────────────────────────────────────────────
+let currentQuiz=null,userName='',answered={},score=0;
+
+function gotoSection(id){
+  document.getElementById(id).scrollIntoView({behavior:'smooth'});
+}
+function openQuiz(key){
+  currentQuiz=key; answered={}; score=0;
+  document.getElementById('main-view').style.display='none';
+  document.getElementById('quiz-view').style.display='block';
+  const hasName=!!userName;
+  document.getElementById('name-gate').style.display=hasName?'none':'block';
+  document.getElementById('quiz-content').style.display=hasName?'block':'none';
+  document.getElementById('score-screen').style.display='none';
+  window.scrollTo(0,0);
+  if(hasName) renderQuiz();
+}
+function closeQuiz(){
+  document.getElementById('quiz-view').style.display='none';
+  document.getElementById('main-view').style.display='block';
+  window.scrollTo(0,0);
+}
+function startQuiz(){
+  const n=document.getElementById('name-input').value.trim();
+  if(!n){document.getElementById('name-input').style.borderColor='var(--coral)';return;}
+  userName=n;
+  document.getElementById('name-gate').style.display='none';
+  document.getElementById('quiz-content').style.display='block';
+  renderQuiz();
+}
+function renderQuiz(){
+  const data=QUIZZES[currentQuiz];
+  document.getElementById('quiz-title').textContent=data.title;
+  document.getElementById('quiz-subtitle').textContent=data.subtitle;
+  document.getElementById('quiz-section-label').textContent=currentQuiz==='summative'?'Final assessment':'Section quiz';
+  const container=document.getElementById('questions-container');
+  container.innerHTML=''; answered={}; score=0;
+  updateProgress(0,data.qs.length);
+  data.qs.forEach((q,qi)=>{
+    const card=document.createElement('div');
+    card.className='q-card'; card.id='qcard-'+qi;
+    const optsHtml=q.opts.map((o,oi)=>`<button class="q-opt" onclick="pickAnswer(${qi},${oi})" id="qopt-${qi}-${oi}">${o}</button>`).join('');
+    card.innerHTML=`<div class="q-num">Question ${qi+1} of ${data.qs.length}</div><div class="q-text">${q.q}</div><div class="q-opts">${optsHtml}</div><div class="q-feedback" id="qfb-${qi}"></div>`;
+    container.appendChild(card);
+  });
+}
+function pickAnswer(qi,oi){
+  if(answered[qi]!==undefined)return;
+  answered[qi]=oi;
+  const data=QUIZZES[currentQuiz];
+  const q=data.qs[qi];
+  const correct=oi===q.ans;
+  if(correct)score++;
+  const opts=document.querySelectorAll(`[id^="qopt-${qi}-"]`);
+  opts.forEach(o=>o.disabled=true);
+  document.getElementById(`qopt-${qi}-${oi}`).classList.add(correct?'correct':'wrong');
+  if(!correct)document.getElementById(`qopt-${qi}-${q.ans}`).classList.add('correct');
+  const fb=document.getElementById(`qfb-${qi}`);
+  fb.textContent=q.fb[oi];
+  fb.className='q-feedback show '+(correct?'correct':'wrong');
+  const total=data.qs.length;
+  const done=Object.keys(answered).length;
+  updateProgress(done,total);
+  if(done===total)setTimeout(()=>showScore(score,total),600);
+}
+function updateProgress(done,total){
+  document.getElementById('prog-label').textContent=done<total?`Question ${done+1} of ${total}`:`All ${total} answered`;
+  document.getElementById('prog-fill').style.width=(done/total*100)+'%';
+}
+function showScore(s,total){
+  document.getElementById('quiz-content').style.display='none';
+  const screen=document.getElementById('score-screen');
+  screen.style.display='block';
+  document.getElementById('score-center-text').textContent=s+'/'+total;
+  const pct=s/total;
+  const offset=326.7-(pct*326.7);
+  setTimeout(()=>{document.getElementById('score-ring-fg').style.strokeDashoffset=offset;},100);
+  const msgs=[[1.0,'Full marks — excellent work.','Strong command of the whole topic.'],[0.8,'Very solid.','Review the questions you missed then re-read those sections.'],[0.6,'Getting there.','Work back through the sections where you dropped marks.'],[0.0,'Keep going.','Revisit each section and re-do the quizzes before retrying.']];
+  const [,msg,sub]=msgs.find(([t])=>pct>=t);
+  document.getElementById('score-msg-text').textContent=msg;
+  document.getElementById('score-sub-text').textContent=sub;
+  const quizLabel=QUIZZES[currentQuiz].title;
+  const body=encodeURIComponent(`Hi Ben,\n\n${userName} completed the "${quizLabel}" quiz and scored ${s} out of ${total} (${Math.round(pct*100)}%).\n\nRegards,\nFreight Learning`);
+  const subject=encodeURIComponent(`Freight quiz result — ${userName}: ${s}/${total}`);
+  document.getElementById('email-link').href=`mailto:ben.kinnison@onsphere.com?subject=${subject}&body=${body}`;
+  window.scrollTo(0,0);
+}
+function retryQuiz(){
+  document.getElementById('score-screen').style.display='none';
+  document.getElementById('quiz-content').style.display='block';
+  renderQuiz(); window.scrollTo(0,0);
+}
+
+// ── NAV SCROLL SPY ─────────────────────────────────────────────────
+window.addEventListener('scroll',()=>{
+  if(document.getElementById('quiz-view').style.display!=='none')return;
+  let cur='';
+  document.querySelectorAll('.section').forEach(s=>{if(window.scrollY>=s.offsetTop-80)cur=s.id;});
+  document.querySelectorAll('#top-nav a').forEach(a=>{
+    const m=a.getAttribute('onclick').match(/'([^']+)'/);
+    a.classList.toggle('active',m&&m[1]===cur);
+  });
+});
+
+// ── MAP ────────────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  if(!document.getElementById('ws-map'))return;
+
+  const map=L.map('ws-map',{center:[20,20],zoom:2,zoomControl:true,attributionControl:false,minZoom:1});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{maxZoom:10,subdomains:'abcd'}).addTo(map);
+  L.control.attribution({prefix:'© CartoDB'}).addTo(map);
+
+  // Port dot icon
+  const dot=(col)=>L.divIcon({className:'',html:`<div style="width:9px;height:9px;border-radius:50%;background:${col};border:2px solid rgba(255,255,255,0.8)"></div>`,iconSize:[9,9],iconAnchor:[4,4]});
+
+  // Mid-route label icon
+  const lbl=(text,col)=>L.divIcon({className:'',html:`<div style="background:rgba(11,31,58,0.9);color:white;font-size:10px;font-family:monospace;padding:2px 6px;border-radius:2px;white-space:nowrap;border-left:2px solid ${col};pointer-events:none">${text}</div>`,iconAnchor:[0,8]});
+
+  // ── REAL SEA-LANE ROUTES ──
+  // Each route is an array of [lat,lng] waypoints following actual sea lanes,
+  // going through straits, around capes, and avoiding land masses.
+
+  const routes=[
+
+    // TD3C: Arabian Gulf → Strait of Hormuz → Indian Ocean → Malacca Strait → South China Sea → China
+    {code:'TD3C',label:'TD3C  $10.85/mt',col:'#C8860A',pts:[
+      [26.70,50.10],  // Ras Tanura
+      [24.50,58.70],  // Gulf of Oman
+      [22.60,59.80],  // Strait of Hormuz exit
+      [15.00,62.00],  // Arabian Sea
+      [5.50,75.00],   // Mid Indian Ocean
+      [1.10,103.50],  // Malacca Strait / Singapore
+      [5.00,109.00],  // South China Sea
+      [15.00,114.00], // South China Sea north
+      [22.00,118.00], // Taiwan Strait approach
+      [29.87,121.61]  // Ningbo
+    ]},
+
+    // TD2: Arabian Gulf → Indian Ocean → Malacca Strait → Singapore
+    {code:'TD2',label:'TD2  $4.95/mt',col:'#C8860A',pts:[
+      [26.70,50.10],
+      [24.50,58.70],
+      [22.60,59.80],
+      [12.00,63.00],
+      [5.50,72.00],
+      [1.29,103.83]   // Singapore
+    ]},
+
+    // TD20: West Africa → around SW Africa / Atlantic → North Europe
+    // (goes west into Atlantic then north, avoiding Gulf of Guinea routing)
+    {code:'TD20',label:'TD20  $18.47/mt',col:'#C44B2B',pts:[
+      [4.44,7.16],    // Bonny Nigeria
+      [0.00,3.00],    // Gulf of Guinea
+      [-5.00,-2.00],  // Out into Atlantic
+      [-10.00,-10.00],
+      [5.00,-18.00],  // Mid-Atlantic
+      [20.00,-20.00],
+      [35.00,-15.00], // Approaching Canaries
+      [43.00,-11.00], // Bay of Biscay
+      [51.00,-1.00],  // English Channel
+      [51.95,4.15]    // Rotterdam
+    ]},
+
+    // TD6: Black Sea → Bosphorus → Mediterranean → Atlantic → NW Europe
+    {code:'TD6',label:'TD6  $8.95/mt',col:'#C44B2B',pts:[
+      [43.10,28.10],  // Black Sea (Novorossiysk area)
+      [41.20,29.00],  // Bosphorus entry
+      [40.60,28.20],  // Marmara Sea
+      [40.00,26.00],  // Dardanelles
+      [37.50,24.00],  // Aegean
+      [36.00,18.00],  // Mediterranean
+      [37.00,13.00],  // Sicily channel
+      [36.50,5.00],   // W Mediterranean
+      [35.90,-5.80],  // Strait of Gibraltar
+      [38.00,-9.50],  // Off Portugal
+      [43.30,-6.00],  // Bay of Biscay
+      [51.00,-1.00],
+      [51.95,4.15]    // Rotterdam
+    ]},
+
+    // TD7: North Sea (Sullom Voe) → Continent short hop
+    {code:'TD7',label:'TD7  $11.05/mt',col:'#C44B2B',pts:[
+      [60.50,1.20],   // Sullom Voe / North Sea
+      [57.00,2.00],
+      [54.00,4.00],
+      [51.95,4.15]    // Rotterdam
+    ]},
+
+    // TD17: Baltic (Primorsk) → Danish Straits → UKC
+    {code:'TD17',label:'TD17  $10.28/mt',col:'#C44B2B',pts:[
+      [60.38,28.59],  // Primorsk
+      [59.50,24.00],  // Gulf of Finland
+      [57.00,20.00],  // Baltic Sea
+      [55.50,12.80],  // Sound / Copenhagen
+      [57.50,8.00],   // Skagerrak
+      [57.00,4.00],   // North Sea
+      [53.00,2.00],   // English Channel approach
+      [51.95,4.15]    // Rotterdam
+    ]},
+
+    // TC2: NW Europe → Canaries → USAC (clean product)
+    {code:'TC2',label:'TC2  $29.40/mt',col:'#0F7B6C',pts:[
+      [51.95,4.15],   // Rotterdam
+      [48.50,-5.00],  // Bay of Biscay
+      [40.00,-10.00], // Off Portugal
+      [35.00,-15.00], // Canaries latitude
+      [25.00,-20.00], // Mid-Atlantic
+      [15.00,-30.00],
+      [20.00,-60.00], // Caribbean approach
+      [25.00,-75.00],
+      [29.90,-81.00], // Florida
+      [40.70,-74.00]  // New York / USAC
+    ]},
+
+    // TC5: Arabian Gulf → Strait of Hormuz → Indian Ocean → Malacca → Japan (clean LR1)
+    {code:'TC5',label:'TC5  $20.75/mt',col:'#0F7B6C',pts:[
+      [26.70,50.10],
+      [24.50,58.70],
+      [22.60,59.80],
+      [10.00,65.00],
+      [1.29,103.83],  // Singapore
+      [5.00,110.00],
+      [15.00,120.00],
+      [25.00,125.00],
+      [34.00,134.00],
+      [35.00,136.50]  // Nagoya/Japan
+    ]},
+
+    // C3: Brazil (Tubarão) → Cape of Good Hope → Indian Ocean → Malacca → China (Capesize iron ore)
+    {code:'C3',label:'C3  ~$22/mt',col:'#7B5EA7',pts:[
+      [-19.80,-40.10], // Tubarão, Brazil
+      [-28.00,-43.00],
+      [-35.00,-50.00],
+      [-40.00,-55.00], // South Atlantic
+      [-50.00,-40.00],
+      [-55.00,-20.00],
+      [-55.00,0.00],
+      [-52.00,20.00],
+      [-45.00,35.00],
+      [-34.35,26.00],  // Cape of Good Hope
+      [-30.00,35.00],
+      [-20.00,45.00],
+      [-10.00,55.00],
+      [0.00,65.00],    // Indian Ocean
+      [8.00,77.00],
+      [5.00,99.00],
+      [1.29,103.83],   // Malacca
+      [8.00,110.00],
+      [20.00,117.00],
+      [29.87,121.61]   // Ningbo
+    ]},
+
+    // C4: Richards Bay (SA coal) → Cape of Good Hope → Atlantic → Rotterdam
+    {code:'C4',label:'C4  ~$12/mt',col:'#7B5EA7',pts:[
+      [-29.00,31.00],  // Richards Bay
+      [-31.00,28.00],
+      [-34.35,26.00],  // Cape of Good Hope
+      [-36.00,18.00],
+      [-35.00,10.00],
+      [-25.00,0.00],   // South Atlantic
+      [-10.00,-10.00],
+      [5.00,-15.00],
+      [20.00,-18.00],
+      [35.00,-12.00],
+      [43.00,-8.00],
+      [51.00,-1.00],
+      [51.95,4.15]     // Rotterdam
+    ]}
+  ];
+
+  const portColors={
+    'Ras Tanura':'#C8860A','Ningbo':'#C8860A','Singapore':'#C8860A',
+    'Bonny':'#C44B2B','Rotterdam':'#C44B2B','Primorsk':'#C44B2B',
+    'Black Sea':'#C44B2B','North Sea':'#C44B2B','Tubarão':'#7B5EA7',
+    'Richards Bay':'#7B5EA7','Japan':'#0F7B6C','USAC':'#0F7B6C'
+  };
+
+  const ports=[
+    {name:'Ras Tanura',lat:26.70,lng:50.10,label:'Load: TD3C, TD2, TC5'},
+    {name:'Ningbo / China',lat:29.87,lng:121.61,label:'Discharge: TD3C, C3'},
+    {name:'Singapore',lat:1.29,lng:103.83,label:'Discharge: TD2 / Waypoint'},
+    {name:'Rotterdam',lat:51.95,lng:4.15,label:'Discharge: TD6, TD7, TD17, TC2, C4'},
+    {name:'Bonny, Nigeria',lat:4.44,lng:7.16,label:'Load: TD20'},
+    {name:'Primorsk, Baltic',lat:60.38,lng:28.59,label:'Load: TD17'},
+    {name:'Black Sea',lat:43.10,lng:28.10,label:'Load: TD6'},
+    {name:'North Sea',lat:60.50,lng:1.20,label:'Load: TD7'},
+    {name:'Tubarão, Brazil',lat:-19.80,lng:-40.10,label:'Load: C3 (iron ore)'},
+    {name:'Richards Bay, SA',lat:-29.00,lng:31.00,label:'Load: C4 (coal)'},
+    {name:'Cape of Good Hope',lat:-34.35,lng:26.00,label:'Waypoint: C3, C4'},
+    {name:'Japan',lat:35.00,lng:136.50,label:'Discharge: TC5'},
+    {name:'USAC / New York',lat:40.70,lng:-74.00,label:'Discharge: TC2'},
+  ];
+
+  routes.forEach(r=>{
+    L.polyline(r.pts,{color:r.col,weight:2,opacity:0.8,dashArray:'6,4'}).addTo(map);
+    // Mid-point label
+    const mid=r.pts[Math.floor(r.pts.length/2)];
+    L.marker(mid,{icon:lbl(r.label,r.col),interactive:false}).addTo(map);
+  });
+
+  ports.forEach(p=>{
+    const col=Object.entries(portColors).find(([k])=>p.name.includes(k))?.[1]||'#aaa';
+    L.marker([p.lat,p.lng],{icon:dot(col)}).addTo(map)
+      .bindPopup(`<strong style="font-size:13px">${p.name}</strong><br><span style="font-size:11px;color:#666">${p.label}</span>`);
+  });
+});
+</script>
+</body>
+</html>
